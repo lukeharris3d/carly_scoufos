@@ -1,30 +1,124 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Carly Scoufos Artwork</title>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Babylon.js Scene</title>
     <style>
-      html,
-      body {
-        overflow: hidden;
-        width: 100%;
-        height: 100%;
-        margin: 0;
-        padding: 0;
-      }
-      #renderCanvas {
-        width: 100%;
-        height: 100%;
-        touch-action: none;
-      }
+        html, body {
+            overflow: hidden;
+            width: 100%;
+            height: 100%;
+            margin: 0;
+            padding: 0;
+        }
+        #renderCanvas {
+            width: 100%;
+            height: 100%;
+            touch-action: none;
+        }
     </style>
+
+    <!-- Babylon.js Core and Loaders CDNs -->
     <script src="https://cdn.babylonjs.com/babylon.js"></script>
     <script src="https://cdn.babylonjs.com/loaders/babylonjs.loaders.min.js"></script>
-    <script src="https://cdn.babylonjs.com/gui/babylon.gui.min.js"></script>
-  </head>
-  <body>
+</head>
+<body>
     <canvas id="renderCanvas"></canvas>
-    <script type="module" src="CS.js"></script>
-  </body>
+
+    <script>
+        const canvas = document.getElementById("renderCanvas");
+        const engine = new BABYLON.Engine(canvas, true);
+
+        const createScene = async function () {
+          const scene = new BABYLON.Scene(engine);
+          scene.clearColor = new BABYLON.Color4(0.5, 0.5, 0.5, 1);
+
+          // Model URL
+          const model1Url = "https://lukeharris3d.github.io/carly_scoufos/glb/carly_001.glb";
+          const envUrl = "https://assets.babylonjs.com/environments/studio.env";
+
+          // 1. ArcRotateCamera Setup
+          const camera = new BABYLON.ArcRotateCamera(
+            "camera",
+            1.59,           // alpha (horizontal rotation)
+            1.54,           // beta (vertical rotation)
+            6,              // radius (distance from target)
+            new BABYLON.Vector3(1.25, 2.19, -0.16), // target point it looks at
+            scene
+          );
+          camera.attachControl(canvas, true);
+          camera.upperBetaLimit = (Math.PI / 2) * 0.98; // Prevent going below ground
+          camera.wheelPrecision = 50;
+
+          // Environment
+          const envTex = BABYLON.CubeTexture.CreateFromPrefilteredData(envUrl, scene);
+          scene.environmentTexture = envTex;
+          scene.imageProcessingConfiguration.exposure = 1;
+          scene.environmentIntensity = 0.8;
+
+          // Simple Lighting
+          const light = new BABYLON.DirectionalLight(
+            "dir01",
+            new BABYLON.Vector3(0.3, -1, -0.4),
+            scene
+          );
+          light.position = new BABYLON.Vector3(0, 15, 0);
+          light.intensity = 0.5;
+          light.autoCalcShadowZBounds = true;
+
+          // Shadows
+          const shadowGenerator = new BABYLON.ShadowGenerator(2048, light);
+          shadowGenerator.bias = 0.01;
+          shadowGenerator.darkness = 0; // Grey shadow darkness
+
+          // Ground Plane (Grey Shadow Catcher)
+          const ground = BABYLON.MeshBuilder.CreateGround(
+            "ground",
+            { width: 10, height: 10 },
+            scene
+          );
+          
+          const shadowCatcherMat = new BABYLON.BackgroundMaterial("shadowCatcherMat", scene);
+          shadowCatcherMat.shadowOnly = true; 
+          shadowCatcherMat.opacityFresnel = false; 
+          shadowCatcherMat.primaryColor = new BABYLON.Color3(0.1, 0.1, 0.1); // Grey shadow tint
+          
+          ground.material = shadowCatcherMat;
+          ground.receiveShadows = true;
+
+          // 4. Load Model
+          const loadModel = async (url, zPos) => {
+            const result = await BABYLON.SceneLoader.ImportMeshAsync(
+              "",
+              url,
+              "",
+              scene
+            );
+            const root = result.meshes[0];
+
+            root.position.y = 0; 
+            root.position.z = zPos; 
+
+            // Make loaded meshes cast shadows
+            result.meshes.forEach((mesh) => {
+              shadowGenerator.addShadowCaster(mesh);
+            });
+
+            return root;
+          };
+
+          // Load model and wait for it
+          await loadModel(model1Url, 0);
+
+          return scene;
+        };
+
+        createScene().then((scene) => {
+          engine.runRenderLoop(() => scene.render());
+        });
+
+        window.addEventListener("resize", () => engine.resize());
+    </script>
+</body>
 </html>
