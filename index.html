@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Carly Scoufos Artwork</title>
+    <title>Carly Scoufoc Artwork</title>
     <style>
         html, body {
             overflow: hidden;
@@ -55,7 +55,7 @@
           const envTex = BABYLON.CubeTexture.CreateFromPrefilteredData(envUrl, scene);
           scene.environmentTexture = envTex;
           scene.imageProcessingConfiguration.exposure = 1;
-          scene.environmentIntensity = 0.8;
+          scene.environmentIntensity = 1.5;
 
           // Simple Lighting
           const light = new BABYLON.DirectionalLight(
@@ -82,7 +82,7 @@
           const shadowCatcherMat = new BABYLON.BackgroundMaterial("shadowCatcherMat", scene);
           shadowCatcherMat.shadowOnly = true; 
           shadowCatcherMat.opacityFresnel = false; 
-          shadowCatcherMat.primaryColor = new BABYLON.Color3(0.1, 0.1, 0.1); // Grey shadow tint
+          shadowCatcherMat.primaryColor = new BABYLON.Color3(0.03, 0.03, 0.03); // Grey shadow tint
           
           ground.material = shadowCatcherMat;
           ground.receiveShadows = true;
