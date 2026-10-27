@@ -50,6 +50,8 @@
           camera.attachControl(canvas, true);
           camera.upperBetaLimit = (Math.PI / 2) * 0.98; // Prevent going below ground
           camera.wheelPrecision = 50;
+          camera.minZ = 0.1; // <-- Added near clipping plane here
+
 
           // Environment
           const envTex = BABYLON.CubeTexture.CreateFromPrefilteredData(envUrl, scene);
