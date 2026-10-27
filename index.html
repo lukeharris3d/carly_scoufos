@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Carly Scoufoc Artwork</title>
+    <title>Carly Scoufos Artwork</title>
     <style>
         html, body {
             overflow: hidden;
@@ -17,6 +17,51 @@
             height: 100%;
             touch-action: none;
         }
+
+        /* Custom style to show ONLY the icon with no dark background circle for WebXR */
+        .babylonVRicon {
+            background-image: url('https://cdn-icons-png.magnific.com/512/6357/6357932.png') !important;
+            background-size: contain !important;
+            background-repeat: no-repeat !important;
+            background-position: center !important;
+            background-color: transparent !important;
+            border: none !important;
+            box-shadow: none !important;
+        }
+
+        .babylonVRicon:hover, 
+        .babylonVRicon:active, 
+        .babylonVRicon:focus {
+            background-color: transparent !important;
+            box-shadow: none !important;
+            transform: scale(1.1);
+            transition: transform 0.2s ease;
+        }
+
+        /* Styling for the iOS AR Quick Look anchor button */
+        #ios-ar-button {
+            display: none; /* Hidden by default, shown via JS on iOS */
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            width: 60px;
+            height: 60px;
+            z-index: 999;
+            background: transparent;
+            border: none;
+            cursor: pointer;
+        }
+
+        #ios-ar-button img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+
+        #ios-ar-button:hover {
+            transform: scale(1.1);
+            transition: transform 0.2s ease;
+        }
     </style>
 
     <!-- Babylon.js Core and Loaders CDNs -->
@@ -26,7 +71,18 @@
 <body>
     <canvas id="renderCanvas"></canvas>
 
+    <!-- Secondary iOS AR Quick Look Anchor Tag -->
+    <a id="ios-ar-button" rel="ar" href="https://lukeharris3d.github.io/carly_scoufos/usdz/carly_001.usdz">
+        <img src="https://cdn-icons-png.magnific.com/512/6357/6357932.png" alt="AR Quick Look">
+    </a>
+
     <script>
+        // Show the iOS AR button automatically if the user is on an iOS device
+        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+        if (isIOS) {
+            document.getElementById('ios-ar-button').style.display = 'block';
+        }
+
         const canvas = document.getElementById("renderCanvas");
         const engine = new BABYLON.Engine(canvas, true);
 
@@ -50,8 +106,7 @@
           camera.attachControl(canvas, true);
           camera.upperBetaLimit = (Math.PI / 2) * 0.98; // Prevent going below ground
           camera.wheelPrecision = 50;
-          camera.minZ = 0.1; // <-- Added near clipping plane here
-
+          camera.minZ = 0.1; // Near clipping plane
 
           // Environment
           const envTex = BABYLON.CubeTexture.CreateFromPrefilteredData(envUrl, scene);
@@ -112,6 +167,19 @@
 
           // Load model and wait for it
           await loadModel(model1Url, 0);
+
+          // --- WebXR AR Setup (For Android / WebXR-supported browsers) ---
+          try {
+            const xr = await scene.createDefaultXRExperienceAsync({
+              uiOptions: {
+                sessionMode: "immersive-ar",
+                referenceSpaceType: "local-floor"
+              },
+              optionalFeatures: true
+            });
+          } catch (e) {
+            console.log("WebXR AR initialization failed or is not supported on this device/browser.", e);
+          }
 
           return scene;
         };
