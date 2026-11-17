@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Carly Scoufos Artwork</title>
+    <style>
+        html, body {
+            overflow: hidden;
+            width: 100%;
+            height: 100%;
+            margin: 0;
+            padding: 0;
+        }
+        #renderCanvas {
+            width: 100%;
+            height: 100%;
+            touch-action: none;
+        }
+
+        /* Custom style to show ONLY the icon with no dark background circle for WebXR */
+        .babylonVRicon {
+            background-image: url('https://cdn-icons-png.magnific.com/512/6357/6357932.png') !important;
+            background-size: contain !important;
+            background-repeat: no-repeat !important;
+            background-position: center !important;
+            background-color: transparent !important;
+            border: none !important;
+            box-shadow: none !important;
+        }
+
+        .babylonVRicon:hover, 
+        .babylonVRicon:active, 
+        .babylonVRicon:focus {
+            background-color: transparent !important;
+            box-shadow: none !important;
+            transform: scale(1.1);
+            transition: transform 0.2s ease;
+        }
+
+        /* Styling for the iOS AR Quick Look anchor button */
+        #ios-ar-button {
+            display: none; /* Hidden by default, shown via JS on iOS */
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            width: 60px;
+            height: 60px;
+            z-index: 999;
+            background: transparent;
+            border: none;
+            cursor: pointer;
+        }
+
+        #ios-ar-button img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+
+        #ios-ar-button:hover {
+            transform: scale(1.1);
+            transition: transform 0.2s ease;
+        }
+    </style>
+
+    <!-- Babylon.js Core and Loaders CDNs -->
+    <script src="https://cdn.babylonjs.com/babylon.js"></script>
+    <script src="https://cdn.babylonjs.com/loaders/babylonjs.loaders.min.js"></script>
+</head>
+<body>
+    <canvas id="renderCanvas"></canvas>
+
+    <!-- Secondary iOS AR Quick Look Anchor Tag -->
+    <a id="ios-ar-button" rel="ar" href="https://lukeharris3d.github.io/carly_scoufos/usdz/carly_001.usdz">
+        <img src="https://cdn-icons-png.magnific.com/512/6357/6357932.png" alt="AR Quick Look">
+    </a>
+
+    <script>
+        // Show the iOS AR button automatically if the user is on an iOS device
+        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+        if (isIOS) {
+            document.getElementById('ios-ar-button').style.display = 'block';
+        }
+
+        const canvas = document.getElementById("renderCanvas");
+        const engine = new BABYLON.Engine(canvas, true);
+
+        const createScene = async function () {
+          const scene = new BABYLON.Scene(engine);
+          scene.clearColor = new BABYLON.Color4(0.3, 0.3, 0.3, 1);
+
+          // Model URL
+          const model1Url = "https://lukeharris3d.github.io/carly_scoufos/glb/carly_001.glb";
+          const envUrl = "https://assets.babylonjs.com/environments/studio.env";
+
+          // 1. ArcRotateCamera Setup
+          const camera = new BABYLON.ArcRotateCamera(
+            "camera",
+            1.59,           // alpha (horizontal rotation)
+            1.54,           // beta (vertical rotation)
+            6,              // radius (distance from target)
+            new BABYLON.Vector3(1.25, 2.19, -0.16), // target point it looks at
+            scene
+          );
+          camera.attachControl(canvas, true);
+          camera.upperBetaLimit = (Math.PI / 2) * 0.98; // Prevent going below ground
+          camera.wheelPrecision = 50;
+          camera.minZ = 0.1; // Near clipping plane
+
+          // Environment
+          const envTex = BABYLON.CubeTexture.CreateFromPrefilteredData(envUrl, scene);
+          scene.environmentTexture = envTex;
+          scene.imageProcessingConfiguration.exposure = 1;
+          scene.environmentIntensity = 1.5;
+
+          // Simple Lighting
+          const light = new BABYLON.DirectionalLight(
+            "dir01",
+            new BABYLON.Vector3(0.3, -1, -0.4),
+            scene
+          );
+          light.position = new BABYLON.Vector3(0, 15, 0);
+          light.intensity = 0.5;
+          light.autoCalcShadowZBounds = true;
+
+          // Shadows
+          const shadowGenerator = new BABYLON.ShadowGenerator(2048, light);
+          shadowGenerator.bias = 0.01;
+          shadowGenerator.darkness = 0; // Grey shadow darkness
+
+          // Ground Plane (Grey Shadow Catcher)
+          const ground = BABYLON.MeshBuilder.CreateGround(
+            "ground",
+            { width: 10, height: 10 },
+            scene
+          );
+          
+          const shadowCatcherMat = new BABYLON.BackgroundMaterial("shadowCatcherMat", scene);
+          shadowCatcherMat.shadowOnly = true; 
+          shadowCatcherMat.opacityFresnel = false; 
+          shadowCatcherMat.primaryColor = new BABYLON.Color3(0.03, 0.03, 0.03); // Grey shadow tint
+          
+          ground.material = shadowCatcherMat;
+          ground.receiveShadows = true;
+
+          // 4. Load Model
+          const loadModel = async (url, zPos) => {
+            const result = await BABYLON.SceneLoader.ImportMeshAsync(
+              "",
+              url,
+              "",
+              scene
+            );
+            const root = result.meshes[0];
+
+            root.position.y = 0; 
+            root.position.z = zPos; 
+
+            // Make loaded meshes cast shadows
+            result.meshes.forEach((mesh) => {
+              shadowGenerator.addShadowCaster(mesh);
+            });
+
+            return root;
+          };
+
+          // Load model and wait for it
+          await loadModel(model1Url, 0);
+
+          // --- WebXR AR Setup (For Android / WebXR-supported browsers) ---
+          try {
+            const xr = await scene.createDefaultXRExperienceAsync({
+              uiOptions: {
+                sessionMode: "immersive-ar",
+                referenceSpaceType: "local-floor"
+              },
+              optionalFeatures: true
+            });
+          } catch (e) {
+            console.log("WebXR AR initialization failed or is not supported on this device/browser.", e);
+          }
+
+          return scene;
+        };
+
+        createScene().then((scene) => {
+          engine.runRenderLoop(() => scene.render());
+        });
+
+        window.addEventListener("resize", () => engine.resize());
+    </script>
+</body>
+</html>

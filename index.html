@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Carly Scoufos Artwork</title>
+    <title>Jennifer Conroy Smith</title>
     <style>
         html, body {
             overflow: hidden;
@@ -11,6 +11,7 @@
             height: 100%;
             margin: 0;
             padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
         }
         #renderCanvas {
             width: 100%;
@@ -18,49 +19,118 @@
             touch-action: none;
         }
 
-        /* Custom style to show ONLY the icon with no dark background circle for WebXR */
-        .babylonVRicon {
-            background-image: url('https://cdn-icons-png.magnific.com/512/6357/6357932.png') !important;
-            background-size: contain !important;
-            background-repeat: no-repeat !important;
-            background-position: center !important;
-            background-color: transparent !important;
-            border: none !important;
-            box-shadow: none !important;
-        }
-
-        .babylonVRicon:hover, 
-        .babylonVRicon:active, 
-        .babylonVRicon:focus {
-            background-color: transparent !important;
-            box-shadow: none !important;
-            transform: scale(1.1);
-            transition: transform 0.2s ease;
-        }
-
-        /* Styling for the iOS AR Quick Look anchor button */
-        #ios-ar-button {
-            display: none; /* Hidden by default, shown via JS on iOS */
+        /* Bottom-Left Controls Stack */
+        #bottom-left-controls {
             position: fixed;
             bottom: 20px;
-            right: 20px;
-            width: 60px;
-            height: 60px;
+            left: 20px;
             z-index: 999;
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 10px;
+        }
+
+        /* Camera Preset Buttons (cam 1 - cam 4) */
+        #camera-buttons-container {
+            display: flex;
+            gap: 6px;
+            background: rgba(150, 150, 150, 0.15);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            padding: 6px;
+            border-radius: 30px;
+            border: 1px solid rgba(150, 150, 150, 0.3);
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.15);
+        }
+
+        .cam-btn {
             background: transparent;
             border: none;
+            color: #333333;
+            padding: 7px 14px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 600;
+            letter-spacing: 0.4px;
+            transition: all 0.25s ease;
+            outline: none;
+        }
+
+        .cam-btn:hover {
+            background: rgba(150, 150, 150, 0.2);
+            transform: translateY(-1px);
+        }
+
+        .cam-btn.active {
+            background: #1a1a1a;
+            color: #ffffff;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        }
+
+        /* Site Transparency Slider */
+        #site-slider-container {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            background: rgba(150, 150, 150, 0.15);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            padding: 10px 18px;
+            border-radius: 30px;
+            border: 1px solid rgba(150, 150, 150, 0.3);
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.15);
+        }
+
+        #site-slider-label {
+            color: #333333;
+            font-size: 14px;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+            user-select: none;
+        }
+
+        #site-slider {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 140px;
+            height: 6px;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 999px;
+            outline: none;
             cursor: pointer;
         }
 
-        #ios-ar-button img {
-            width: 100%;
-            height: 100%;
-            object-fit: contain;
+        #site-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: #1a1a1a;
+            cursor: pointer;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
+            transition: transform 0.15s ease;
         }
 
-        #ios-ar-button:hover {
-            transform: scale(1.1);
-            transition: transform 0.2s ease;
+        #site-slider::-webkit-slider-thumb:hover {
+            transform: scale(1.15);
+        }
+
+        #site-slider::-moz-range-thumb {
+            width: 16px;
+            height: 16px;
+            border: none;
+            border-radius: 50%;
+            background: #1a1a1a;
+            cursor: pointer;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
+            transition: transform 0.15s ease;
+        }
+
+        #site-slider::-moz-range-thumb:hover {
+            transform: scale(1.15);
         }
     </style>
 
@@ -71,68 +141,160 @@
 <body>
     <canvas id="renderCanvas"></canvas>
 
-    <!-- Secondary iOS AR Quick Look Anchor Tag -->
-    <a id="ios-ar-button" rel="ar" href="https://lukeharris3d.github.io/carly_scoufos/usdz/carly_001.usdz">
-        <img src="https://cdn-icons-png.magnific.com/512/6357/6357932.png" alt="AR Quick Look">
-    </a>
+    <!-- Bottom-Left UI: Camera Buttons + Site Slider -->
+    <div id="bottom-left-controls">
+        <div id="camera-buttons-container">
+            <button class="cam-btn active" data-cam="0">cam 1</button>
+            <button class="cam-btn" data-cam="1">cam 2</button>
+            <button class="cam-btn" data-cam="2">cam 3</button>
+            <button class="cam-btn" data-cam="3">cam 4</button>
+        </div>
+
+        <div id="site-slider-container">
+            <label id="site-slider-label" for="site-slider">site</label>
+            <input id="site-slider" type="range" min="0" max="1" step="0.01" value="1">
+        </div>
+    </div>
 
     <script>
-        // Show the iOS AR button automatically if the user is on an iOS device
-        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
-        if (isIOS) {
-            document.getElementById('ios-ar-button').style.display = 'block';
-        }
-
         const canvas = document.getElementById("renderCanvas");
-        const engine = new BABYLON.Engine(canvas, true);
+        // 4th arg (true) enables HiDPI / Retina resolution (adaptToDeviceRatio)
+        const engine = new BABYLON.Engine(canvas, true, undefined, true);
+
+        // Fixed Camera Target
+        const defaultCameraTarget = new BABYLON.Vector3(-1.71, 4.6, -4.75);
+
+        // Camera Presets (all share defaultCameraTarget)
+        const cameraPresets = [
+            { alpha: 1.30, beta: 1.98, radius: 10 },
+            { alpha: 1.3,  beta: 0.7,  radius: 11 },
+            { alpha: 0,    beta: 0.5,  radius: 10 },
+            { alpha: 3.3,  beta: 1.7,  radius: 12.9 }
+        ];
 
         const createScene = async function () {
           const scene = new BABYLON.Scene(engine);
-          scene.clearColor = new BABYLON.Color4(0.3, 0.3, 0.3, 1);
+          
+          // White background
+          scene.clearColor = new BABYLON.Color4(1, 1, 1, 1);
 
           // Model URL
-          const model1Url = "https://lukeharris3d.github.io/carly_scoufos/glb/carly_001.glb";
-          const envUrl = "https://assets.babylonjs.com/environments/studio.env";
+          const model1Url = "https://lukeharris3d.github.io/carly_scoufos/glb/carly_002.glb";
+          const envUrl = "https://assets.babylonjs.com/environments/sanGiuseppeBridge.env";
 
-          // 1. ArcRotateCamera Setup
+          // 1. ArcRotateCamera Setup (initialized from cam 1 + defaultCameraTarget)
+          const initialPreset = cameraPresets[0];
           const camera = new BABYLON.ArcRotateCamera(
             "camera",
-            1.59,           // alpha (horizontal rotation)
-            1.54,           // beta (vertical rotation)
-            6,              // radius (distance from target)
-            new BABYLON.Vector3(1.25, 2.19, -0.16), // target point it looks at
+            initialPreset.alpha,
+            initialPreset.beta,
+            initialPreset.radius,
+            defaultCameraTarget.clone(),
             scene
           );
           camera.attachControl(canvas, true);
-          camera.upperBetaLimit = (Math.PI / 2) * 0.98; // Prevent going below ground
+          camera.fov = BABYLON.Tools.ToRadians(50);
+          //camera.upperBetaLimit = (Math.PI / 2) * 0.98; // Prevent going below ground
           camera.wheelPrecision = 50;
           camera.minZ = 0.1; // Near clipping plane
+          //camera.panningSensibility = 0; // Uncomment to disable panning
+
+          // --- Camera Preset Buttons & Smooth Transition Logic ---
+          const camButtons = document.querySelectorAll(".cam-btn");
+          let activeTransition = null;
+          const transitionTargetScratch = new BABYLON.Vector3();
+
+          const cancelTransitionAndClearActive = () => {
+              activeTransition = null;
+              camButtons.forEach((btn) => btn.classList.remove("active"));
+          };
+
+          canvas.addEventListener("pointerdown", cancelTransitionAndClearActive);
+          canvas.addEventListener("wheel", cancelTransitionAndClearActive, { passive: true });
+
+          camButtons.forEach((btn) => {
+              btn.addEventListener("click", () => {
+                  const presetIndex = parseInt(btn.dataset.cam, 10);
+                  const preset = cameraPresets[presetIndex];
+                  if (!preset) return;
+
+                  camButtons.forEach((b) => b.classList.remove("active"));
+                  btn.classList.add("active");
+
+                  // Stop any ongoing camera inertia
+                  camera.inertialAlphaOffset = 0;
+                  camera.inertialBetaOffset = 0;
+                  camera.inertialRadiusOffset = 0;
+                  camera.inertialPanningX = 0;
+                  camera.inertialPanningY = 0;
+
+                  activeTransition = {
+                      startTime: performance.now(),
+                      duration: 1200,
+                      fromAlpha: camera.alpha,
+                      fromBeta: camera.beta,
+                      fromRadius: camera.radius,
+                      fromTarget: camera.target.clone(),
+                      toAlpha: preset.alpha,
+                      toBeta: preset.beta,
+                      toRadius: preset.radius,
+                      toTarget: defaultCameraTarget
+                  };
+              });
+          });
+
+          // --- Camera Transition Update Loop ---
+          scene.onBeforeRenderObservable.add(() => {
+              if (activeTransition) {
+                  const elapsed = performance.now() - activeTransition.startTime;
+                  const t = Math.min(elapsed / activeTransition.duration, 1);
+                  // Smooth cubic ease-in-out
+                  const ease = t < 0.5
+                      ? 4 * t * t * t
+                      : 1 - Math.pow(-2 * t + 2, 3) / 2;
+
+                  camera.alpha = BABYLON.Scalar.Lerp(activeTransition.fromAlpha, activeTransition.toAlpha, ease);
+                  camera.beta = BABYLON.Scalar.Lerp(activeTransition.fromBeta, activeTransition.toBeta, ease);
+                  camera.radius = BABYLON.Scalar.Lerp(activeTransition.fromRadius, activeTransition.toRadius, ease);
+                  BABYLON.Vector3.LerpToRef(
+                      activeTransition.fromTarget,
+                      activeTransition.toTarget,
+                      ease,
+                      transitionTargetScratch
+                  );
+                  camera.target.copyFrom(transitionTargetScratch);
+
+                  if (t >= 1) {
+                      activeTransition = null;
+                  }
+              }
+          });
 
           // Environment
           const envTex = BABYLON.CubeTexture.CreateFromPrefilteredData(envUrl, scene);
           scene.environmentTexture = envTex;
           scene.imageProcessingConfiguration.exposure = 1;
-          scene.environmentIntensity = 1.5;
+          scene.environmentIntensity = 1;
 
           // Simple Lighting
           const light = new BABYLON.DirectionalLight(
             "dir01",
-            new BABYLON.Vector3(0.3, -1, -0.4),
+            new BABYLON.Vector3(0.3, -1, -0.1),
             scene
           );
           light.position = new BABYLON.Vector3(0, 15, 0);
-          light.intensity = 0.5;
+          light.intensity = 0.3;
           light.autoCalcShadowZBounds = true;
 
           // Shadows
           const shadowGenerator = new BABYLON.ShadowGenerator(2048, light);
           shadowGenerator.bias = 0.01;
-          shadowGenerator.darkness = 0; // Grey shadow darkness
+          shadowGenerator.darkness = 0.8; // Grey shadow darkness
 
           // Ground Plane (Grey Shadow Catcher)
           const ground = BABYLON.MeshBuilder.CreateGround(
             "ground",
-            { width: 10, height: 10 },
+            { width: 310, height: 30 },
             scene
           );
           
@@ -168,18 +330,55 @@
           // Load model and wait for it
           await loadModel(model1Url, 0);
 
-          // --- WebXR AR Setup (For Android / WebXR-supported browsers) ---
-          try {
-            const xr = await scene.createDefaultXRExperienceAsync({
-              uiOptions: {
-                sessionMode: "immersive-ar",
-                referenceSpaceType: "local-floor"
-              },
-              optionalFeatures: true
-            });
-          } catch (e) {
-            console.log("WebXR AR initialization failed or is not supported on this device/browser.", e);
+          // --- Refine MASK alpha edges on artwork1 and artwork2 ---
+          scene.materials.forEach((mat) => {
+              if (mat.name === "artwork1" || mat.name === "artwork2") {
+                  mat.transparencyMode = BABYLON.PBRMaterial.PBRMATERIAL_ALPHATESTANDBLEND;
+                  mat.alphaCutOff = 0.2;
+                  if (mat.albedoTexture) {
+                      mat.albedoTexture.anisotropicFilteringLevel = 16;
+                  }
+              }
+          });
+
+          // --- Add Post-Processing (Bloom + FXAA Pipeline) ---
+          const pipeline = new BABYLON.DefaultRenderingPipeline(
+            "defaultPipeline", 
+            true, // use HDR
+            scene, 
+            [camera]
+          );
+
+          pipeline.fxaaEnabled = true;
+          pipeline.bloomEnabled = true;
+          pipeline.bloomWeight = 0.1;   
+          pipeline.bloomKernel = 64;    
+          pipeline.bloomThreshold = 0.8; 
+
+          // --- "site" Material Transparency Slider Logic ---
+          const siteSlider = document.getElementById("site-slider");
+          const siteMat = scene.getMaterialByName("site");
+          const initialTransparencyMode = siteMat && "transparencyMode" in siteMat
+              ? siteMat.transparencyMode
+              : null;
+
+          if (siteMat && typeof siteMat.alpha === "number") {
+              siteSlider.value = siteMat.alpha;
           }
+
+          siteSlider.addEventListener("input", (event) => {
+              const alpha = parseFloat(event.target.value);
+              if (siteMat) {
+                  siteMat.alpha = alpha;
+                  if ("transparencyMode" in siteMat) {
+                      if (alpha < 1) {
+                          siteMat.transparencyMode = BABYLON.PBRMaterial.PBRMATERIAL_ALPHABLEND;
+                      } else {
+                          siteMat.transparencyMode = initialTransparencyMode ?? BABYLON.PBRMaterial.PBRMATERIAL_OPAQUE;
+                      }
+                  }
+              }
+          });
 
           return scene;
         };
