@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Carly Scoufos</title>
+    <title>Jennifer Conroy Smith</title>
     <style>
         html, body {
             overflow: hidden;
@@ -180,7 +180,7 @@
 
           // Model URL
           const model1Url = "https://lukeharris3d.github.io/carly_scoufos/glb/carly_002.glb";
-          const envUrl = "https://assets.babylonjs.com/environments/sanGiuseppeBridge.env";
+          const envUrl = "https://playground.babylonjs.com/textures/parking.env";
 
           // 1. ArcRotateCamera Setup (initialized from cam 1 + defaultCameraTarget)
           const initialPreset = cameraPresets[0];
@@ -274,7 +274,7 @@
           const envTex = BABYLON.CubeTexture.CreateFromPrefilteredData(envUrl, scene);
           scene.environmentTexture = envTex;
           scene.imageProcessingConfiguration.exposure = 1;
-          scene.environmentIntensity = 1;
+          scene.environmentIntensity = 0.32;
 
           // Simple Lighting
           const light = new BABYLON.DirectionalLight(
@@ -334,9 +334,9 @@
           scene.materials.forEach((mat) => {
               if (mat.name === "artwork1" || mat.name === "artwork2") {
                   mat.transparencyMode = BABYLON.PBRMaterial.PBRMATERIAL_ALPHATESTANDBLEND;
-                  mat.alphaCutOff = 0.05;
+                  mat.alphaCutOff = 0.01;
                   if (mat.albedoTexture) {
-                      mat.albedoTexture.anisotropicFilteringLevel = 4;
+                      mat.albedoTexture.anisotropicFilteringLevel = 16;
                   }
               }
           });
@@ -350,7 +350,7 @@
           );
 
           pipeline.fxaaEnabled = true;
-          pipeline.bloomEnabled = true;
+          pipeline.bloomEnabled = false;
           pipeline.bloomWeight = 0.1;   
           pipeline.bloomKernel = 64;    
           pipeline.bloomThreshold = 0.8; 
