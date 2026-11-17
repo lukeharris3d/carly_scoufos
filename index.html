@@ -175,7 +175,7 @@
         const createScene = async function () {
           const scene = new BABYLON.Scene(engine);
           
-          // White background
+          // White background (at site = 1)
           scene.clearColor = new BABYLON.Color4(1, 1, 1, 1);
 
           // Model URL
@@ -350,24 +350,25 @@
           );
 
           pipeline.fxaaEnabled = true;
-          pipeline.bloomEnabled = true;
-          pipeline.bloomWeight = 0.1;   
-          pipeline.bloomKernel = 64;    
-          pipeline.bloomThreshold = 0.8; 
+          pipeline.sharpenEnabled = true;
+          pipeline.sharpen.edgeAmount = 0.2;   // subtle edge crispness (default ~0.3)
+          pipeline.sharpen.colorAmount = 1.0;
+          engine.setHardwareScalingLevel(0.75); // < 1.0 renders higher-res, > 1.0 renders lower-res
 
-          // --- "site" Material Transparency Slider Logic ---
+
+          // --- "site" Material Transparency & Background ClearColor Slider Logic ---
           const siteSlider = document.getElementById("site-slider");
           const siteMat = scene.getMaterialByName("site");
           const initialTransparencyMode = siteMat && "transparencyMode" in siteMat
               ? siteMat.transparencyMode
               : null;
 
-          if (siteMat && typeof siteMat.alpha === "number") {
-              siteSlider.value = siteMat.alpha;
-          }
+          const applySiteValue = (alpha) => {
+              // Lerps background from (0.6, 0.6, 0.6, 1) at 0 to (1, 1, 1, 1) at 1
+              // (Swap 0.6 and 1 below if you want the reverse direction)
+              const c = BABYLON.Scalar.Lerp(0.3, 1, alpha);
+              scene.clearColor.set(c, c, c, 1);
 
-          siteSlider.addEventListener("input", (event) => {
-              const alpha = parseFloat(event.target.value);
               if (siteMat) {
                   siteMat.alpha = alpha;
                   if ("transparencyMode" in siteMat) {
@@ -378,6 +379,15 @@
                       }
                   }
               }
+          };
+
+          if (siteMat && typeof siteMat.alpha === "number") {
+              siteSlider.value = siteMat.alpha;
+          }
+          applySiteValue(parseFloat(siteSlider.value));
+
+          siteSlider.addEventListener("input", (event) => {
+              applySiteValue(parseFloat(event.target.value));
           });
 
           return scene;
