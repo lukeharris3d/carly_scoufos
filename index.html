@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Jennifer Conroy Smith</title>
+    <title>Carly Scoufos</title>
     <style>
         html, body {
             overflow: hidden;
@@ -334,9 +334,9 @@
           scene.materials.forEach((mat) => {
               if (mat.name === "artwork1" || mat.name === "artwork2") {
                   mat.transparencyMode = BABYLON.PBRMaterial.PBRMATERIAL_ALPHATESTANDBLEND;
-                  mat.alphaCutOff = 0.2;
+                  mat.alphaCutOff = 0.05;
                   if (mat.albedoTexture) {
-                      mat.albedoTexture.anisotropicFilteringLevel = 16;
+                      mat.albedoTexture.anisotropicFilteringLevel = 4;
                   }
               }
           });
