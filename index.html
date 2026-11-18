@@ -31,6 +31,22 @@
             gap: 10px;
         }
 
+        /* Hint Text Above Camera Buttons */
+        #move-hint {
+            color: #333333;
+            font-size: 12px;
+            font-weight: 600;
+            letter-spacing: 0.4px;
+            background: rgba(150, 150, 150, 0.15);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            padding: 6px 14px;
+            border-radius: 20px;
+            border: 1px solid rgba(150, 150, 150, 0.3);
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.15);
+            user-select: none;
+        }
+
         /* Camera Preset Buttons (cam 1 - cam 4) */
         #camera-buttons-container {
             display: flex;
@@ -141,8 +157,10 @@
 <body>
     <canvas id="renderCanvas"></canvas>
 
-    <!-- Bottom-Left UI: Camera Buttons + Site Slider -->
+    <!-- Bottom-Left UI: Hint + Camera Buttons + Site Slider -->
     <div id="bottom-left-controls">
+        <div id="move-hint">click artwork to move</div>
+
         <div id="camera-buttons-container">
             <button class="cam-btn active" data-cam="0">cam 1</button>
             <button class="cam-btn" data-cam="1">cam 2</button>
@@ -179,7 +197,7 @@
           scene.clearColor = new BABYLON.Color4(1, 1, 1, 1);
 
           // Model URL
-          const model1Url = "https://lukeharris3d.github.io/carly_scoufos/glb/carly_003.glb";
+          const model1Url = "https://lukeharris3d.github.io/carly_scoufos/glb/carly_004.glb";
           const envUrl = "https://assets.babylonjs.com/environments/sanGiuseppeBridge.env";
 
           // 1. ArcRotateCamera Setup (initialized from cam 1 + defaultCameraTarget)
@@ -305,6 +323,7 @@
           
           ground.material = shadowCatcherMat;
           ground.receiveShadows = true;
+          ground.isPickable = false;
 
           // 4. Load Model
           const loadModel = async (url, zPos) => {
@@ -330,6 +349,52 @@
           // Load model and wait for it
           await loadModel(model1Url, 0);
 
+          // --- Position & Rotation Gizmo for A01 - A06 ---
+          const gizmoManager = new BABYLON.GizmoManager(scene);
+          gizmoManager.positionGizmoEnabled = true;
+          gizmoManager.rotationGizmoEnabled = true;
+          gizmoManager.scaleRatio = 0.5;
+          gizmoManager.usePointerToAttachGizmos = false;
+          gizmoManager.gizmos.positionGizmo.updateGizmoRotationToMatchAttachedMesh = false;
+          gizmoManager.gizmos.rotationGizmo.updateGizmoRotationToMatchAttachedMesh = false;
+
+          const movableObjectNames = new Set(["A01", "A02", "A03", "A04", "A05", "A06"]);
+
+          const findMovableNode = (mesh) => {
+              let current = mesh;
+              while (current) {
+                  if (movableObjectNames.has(current.name)) {
+                      return current;
+                  }
+                  current = current.parent;
+              }
+              return null;
+          };
+
+          scene.onPointerObservable.add((pointerInfo) => {
+              if (pointerInfo.type !== BABYLON.PointerEventTypes.POINTERTAP) return;
+              if (gizmoManager.isHovered || gizmoManager.isDragging) return;
+
+              const pickResult = scene.pick(scene.pointerX, scene.pointerY, (mesh) => {
+                  if (!mesh.isVisible || !mesh.isPickable) return false;
+                  // Allow clicking through semi-transparent "site" or "top" meshes
+                  if (
+                      mesh.material &&
+                      (mesh.material.name === "site" || mesh.material.name === "top") &&
+                      mesh.material.alpha < 1
+                  ) {
+                      return false;
+                  }
+                  return true;
+              });
+
+              const targetNode = pickResult && pickResult.hit
+                  ? findMovableNode(pickResult.pickedMesh)
+                  : null;
+
+              gizmoManager.attachToNode(targetNode);
+          });
+
           // --- Refine MASK alpha edges on artwork1 and artwork2 ---
           scene.materials.forEach((mat) => {
               if (mat.name === "artwork1" || mat.name === "artwork2") {
@@ -341,7 +406,7 @@
               }
           });
 
-          // --- Add Post-Processing (Bloom + FXAA Pipeline) ---
+          // --- Add Post-Processing (FXAA + Sharpen Pipeline) ---
           const pipeline = new BABYLON.DefaultRenderingPipeline(
             "defaultPipeline", 
             true, // use HDR
@@ -355,34 +420,36 @@
           pipeline.sharpen.colorAmount = 1.0;
           engine.setHardwareScalingLevel(0.75); // < 1.0 renders higher-res, > 1.0 renders lower-res
 
-
-          // --- "site" Material Transparency & Background ClearColor Slider Logic ---
+          // --- "site" & "top" Material Transparency & Background ClearColor Slider Logic ---
           const siteSlider = document.getElementById("site-slider");
-          const siteMat = scene.getMaterialByName("site");
-          const initialTransparencyMode = siteMat && "transparencyMode" in siteMat
-              ? siteMat.transparencyMode
-              : null;
+          const fadeMaterials = scene.materials
+              .filter((mat) => mat.name === "site" || mat.name === "top")
+              .map((mat) => ({
+                  mat,
+                  initialTransparencyMode: "transparencyMode" in mat ? mat.transparencyMode : null
+              }));
 
           const applySiteValue = (alpha) => {
-              // Lerps background from (0.6, 0.6, 0.6, 1) at 0 to (1, 1, 1, 1) at 1
-              // (Swap 0.6 and 1 below if you want the reverse direction)
+              // Lerps background from (0.3, 0.3, 0.3, 1) at 0 to (1, 1, 1, 1) at 1
+              // (Swap 0.3 and 1 below if you want the reverse direction)
               const c = BABYLON.Scalar.Lerp(0.3, 1, alpha);
               scene.clearColor.set(c, c, c, 1);
 
-              if (siteMat) {
-                  siteMat.alpha = alpha;
-                  if ("transparencyMode" in siteMat) {
+              fadeMaterials.forEach(({ mat, initialTransparencyMode }) => {
+                  mat.alpha = alpha;
+                  if ("transparencyMode" in mat) {
                       if (alpha < 1) {
-                          siteMat.transparencyMode = BABYLON.PBRMaterial.PBRMATERIAL_ALPHABLEND;
+                          mat.transparencyMode = BABYLON.PBRMaterial.PBRMATERIAL_ALPHABLEND;
                       } else {
-                          siteMat.transparencyMode = initialTransparencyMode ?? BABYLON.PBRMaterial.PBRMATERIAL_OPAQUE;
+                          mat.transparencyMode = initialTransparencyMode ?? BABYLON.PBRMaterial.PBRMATERIAL_OPAQUE;
                       }
                   }
-              }
+              });
           };
 
-          if (siteMat && typeof siteMat.alpha === "number") {
-              siteSlider.value = siteMat.alpha;
+          const siteEntry = fadeMaterials.find(({ mat }) => mat.name === "site") || fadeMaterials[0];
+          if (siteEntry && typeof siteEntry.mat.alpha === "number") {
+              siteSlider.value = siteEntry.mat.alpha;
           }
           applySiteValue(parseFloat(siteSlider.value));
 
