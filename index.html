@@ -376,7 +376,8 @@
           const gizmoManager = new BABYLON.GizmoManager(scene);
           gizmoManager.positionGizmoEnabled = true;
           gizmoManager.rotationGizmoEnabled = true;
-          gizmoManager.scaleRatio = 0.5;
+          gizmoManager.gizmos.positionGizmo.scaleRatio = 0.65; // Slightly bigger move arrows
+          gizmoManager.gizmos.rotationGizmo.scaleRatio = 0.35; // Slightly smaller rotation rings
           gizmoManager.usePointerToAttachGizmos = false;
           gizmoManager.gizmos.positionGizmo.updateGizmoRotationToMatchAttachedMesh = false;
           gizmoManager.gizmos.rotationGizmo.updateGizmoRotationToMatchAttachedMesh = false;
