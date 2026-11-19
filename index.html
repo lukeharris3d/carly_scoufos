@@ -220,6 +220,46 @@
         #site-slider::-moz-range-thumb:hover {
             transform: scale(1.15);
         }
+
+        /* Copy MAXScript Button */
+        #copy-changes-btn {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            z-index: 999;
+            background: rgba(150, 150, 150, 0.15);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border: 1px solid rgba(150, 150, 150, 0.3);
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.15);
+            color: #333333;
+            padding: 10px 18px;
+            border-radius: 30px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 600;
+            letter-spacing: 0.4px;
+            transition: all 0.25s ease;
+            outline: none;
+            user-select: none;
+        }
+
+        #copy-changes-btn:hover {
+            background: rgba(150, 150, 150, 0.25);
+            transform: translateY(-1px);
+        }
+
+        #copy-changes-btn.copied {
+            background: #1a1a1a;
+            color: #ffffff;
+        }
+
+        @media (max-width: 640px) {
+            #copy-changes-btn {
+                top: 20px;
+                bottom: auto;
+            }
+        }
     </style>
 
     <!-- Babylon.js Core and Loaders CDNs -->
@@ -262,6 +302,9 @@
         </div>
     </div>
 
+    <!-- Copy MAXScript Button -->
+    <button id="copy-changes-btn" type="button">copy maxscript</button>
+
     <script>
         const canvas = document.getElementById("renderCanvas");
         // 4th arg (true) enables HiDPI / Retina resolution (adaptToDeviceRatio)
@@ -274,6 +317,7 @@
         const loadingLabel = document.getElementById("loading-label");
         const loadingPercent = document.getElementById("loading-percent");
         const loadingBarFill = document.getElementById("loading-bar-fill");
+        const copyChangesBtn = document.getElementById("copy-changes-btn");
 
         // Fixed Camera Target
         const defaultCameraTarget = new BABYLON.Vector3(-1.71, 4.6, -4.75);
@@ -296,7 +340,7 @@
           scene.clearColor = new BABYLON.Color4(1, 1, 1, 1);
 
           // Model URL
-          const model1Url = "https://lukeharris3d.github.io/carly_scoufos/glb/carly_05.glb";
+          const model1Url = "https://lukeharris3d.github.io/carly_scoufos/glb/carly_004.glb";
           const envUrl = "https://assets.babylonjs.com/environments/sanGiuseppeBridge.env";
 
           // 1. ArcRotateCamera Setup (initialized from cam 1 + defaultCameraTarget)
@@ -477,7 +521,7 @@
           };
 
           // Load model and wait for it
-          await loadModel(model1Url, 0);
+          const glbRoot = await loadModel(model1Url, 0);
 
           // --- Position & Rotation Gizmo for A01 - A06 ---
           const gizmoManager = new BABYLON.GizmoManager(scene);
@@ -489,12 +533,137 @@
           gizmoManager.gizmos.positionGizmo.updateGizmoRotationToMatchAttachedMesh = false;
           gizmoManager.gizmos.rotationGizmo.updateGizmoRotationToMatchAttachedMesh = false;
 
-          const movableObjectNames = new Set(["A01", "A02", "A03", "A04", "A05", "A06"]);
+          const movableObjectNames = ["A01", "A02", "A03", "A04", "A05", "A06"];
+          const movableNameSet = new Set(movableObjectNames);
+
+          // Extract node transform in right-handed glTF root space (meters, Y-up)
+          const getNodeGltfTransform = (node) => {
+              const invRootWorld = BABYLON.Matrix.Invert(glbRoot.computeWorldMatrix(true));
+              const nodeInGltf = node.computeWorldMatrix(true).multiply(invRootWorld);
+              const scale = new BABYLON.Vector3();
+              const rotQuat = new BABYLON.Quaternion();
+              const pos = new BABYLON.Vector3();
+              nodeInGltf.decompose(scale, rotQuat, pos);
+              rotQuat.normalize();
+              return { pos, rotQuat };
+          };
+
+          // Record initial transforms right after GLB load
+          const trackedNodes = [];
+          const initialTransforms = new Map();
+
+          movableObjectNames.forEach((name) => {
+              const node = scene.getNodeByName(name);
+              if (node) {
+                  trackedNodes.push(node);
+                  initialTransforms.set(name, getNodeGltfTransform(node));
+              }
+          });
+
+          const fmt = (n) => Number(n.toFixed(5));
+
+          const buildMaxScript = () => {
+              const entries = [];
+
+              trackedNodes.forEach((node) => {
+                  const init = initialTransforms.get(node.name);
+                  const cur = getNodeGltfTransform(node);
+
+                  const posChanged =
+                      Math.abs(cur.pos.x - init.pos.x) > 0.0005 ||
+                      Math.abs(cur.pos.y - init.pos.y) > 0.0005 ||
+                      Math.abs(cur.pos.z - init.pos.z) > 0.0005;
+                  const quatDot = Math.abs(BABYLON.Quaternion.Dot(cur.rotQuat, init.rotationQuaternion || init.rotQuat));
+                  const rotChanged = quatDot < 0.999999;
+
+                  entries.push({
+                      name: node.name,
+                      changed: posChanged || rotChanged,
+                      pos: cur.pos,
+                      rotQuat: cur.rotQuat
+                  });
+              });
+
+              const changedEntries = entries.filter((e) => e.changed);
+              const toExport = changedEntries.length > 0 ? changedEntries : entries;
+
+              const lines = [
+                  "(",
+                  `    -- ${changedEntries.length > 0 ? `${changedEntries.length} modified object(s)` : "No changes detected; exporting all A01-A06"}`,
+                  '    undo "Apply Web Viewer Transforms" on (',
+                  '        local oneMeter = units.decodeValue "1.0m"',
+                  "",
+                  "        fn applyGlbTransform nodeName posGltf quatGltf = (",
+                  "            local obj = getNodeByName nodeName exact:true",
+                  "            if obj != undefined then (",
+                  "                local pMax = [posGltf.x, -posGltf.z, posGltf.y] * oneMeter",
+                  "                local qMax = quat quatGltf.x (-quatGltf.z) quatGltf.y quatGltf.w",
+                  "                in coordsys (transmatrix obj.transform.pos) obj.rotation = qMax",
+                  "                obj.pos = pMax",
+                  '                format "Updated %\\n" nodeName',
+                  "            ) else (",
+                  '                format "Node not found: %\\n" nodeName',
+                  "            )",
+                  "        )",
+                  ""
+              ];
+
+              toExport.forEach(({ name, pos, rotQuat }) => {
+                  lines.push(
+                      `        applyGlbTransform "${name}" [${fmt(pos.x)}, ${fmt(pos.y)}, ${fmt(pos.z)}] (quat ${fmt(rotQuat.x)} ${fmt(rotQuat.y)} ${fmt(rotQuat.z)} ${fmt(rotQuat.w)})`
+                  );
+              });
+
+              lines.push("    )", ")");
+
+              return {
+                  script: lines.join("\n"),
+                  changedCount: changedEntries.length
+              };
+          };
+
+          const copyToClipboard = async (text) => {
+              if (navigator.clipboard && window.isSecureContext) {
+                  await navigator.clipboard.writeText(text);
+              } else {
+                  const textarea = document.createElement("textarea");
+                  textarea.value = text;
+                  textarea.style.position = "fixed";
+                  textarea.style.opacity = "0";
+                  document.body.appendChild(textarea);
+                  textarea.select();
+                  document.execCommand("copy");
+                  document.body.removeChild(textarea);
+              }
+          };
+
+          let copyResetTimer = null;
+          copyChangesBtn.addEventListener("click", async () => {
+              const { script, changedCount } = buildMaxScript();
+
+              try {
+                  await copyToClipboard(script);
+                  copyChangesBtn.classList.add("copied");
+                  copyChangesBtn.textContent = changedCount > 0
+                      ? `copied (${changedCount} changed)`
+                      : "copied (all)";
+              } catch (err) {
+                  console.error("Clipboard copy failed:", err);
+                  console.log(script);
+                  copyChangesBtn.textContent = "check console";
+              }
+
+              clearTimeout(copyResetTimer);
+              copyResetTimer = setTimeout(() => {
+                  copyChangesBtn.classList.remove("copied");
+                  copyChangesBtn.textContent = "copy maxscript";
+              }, 2000);
+          });
 
           const findMovableNode = (mesh) => {
               let current = mesh;
               while (current) {
-                  if (movableObjectNames.has(current.name)) {
+                  if (movableNameSet.has(current.name)) {
                       return current;
                   }
                   current = current.parent;
