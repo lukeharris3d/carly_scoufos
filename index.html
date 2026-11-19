@@ -19,6 +19,76 @@
             touch-action: none;
         }
 
+        /* GLB Loading Bar Overlay */
+        #loading-overlay {
+            position: fixed;
+            inset: 0;
+            z-index: 2000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #ffffff;
+            transition: opacity 0.4s ease;
+        }
+
+        #loading-overlay.hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        #loading-box {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            width: 240px;
+            padding: 16px 20px;
+            border-radius: 20px;
+            background: rgba(150, 150, 150, 0.12);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border: 1px solid rgba(150, 150, 150, 0.3);
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.1);
+        }
+
+        #loading-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            color: #333333;
+            font-size: 13px;
+            font-weight: 600;
+            letter-spacing: 0.4px;
+            font-variant-numeric: tabular-nums;
+        }
+
+        #loading-track {
+            width: 100%;
+            height: 6px;
+            background: rgba(0, 0, 0, 0.15);
+            border-radius: 999px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        #loading-bar-fill {
+            width: 0%;
+            height: 100%;
+            background: #1a1a1a;
+            border-radius: 999px;
+            transition: width 0.15s ease;
+        }
+
+        #loading-bar-fill.indeterminate {
+            width: 40% !important;
+            position: absolute;
+            animation: indeterminateSlide 1.1s infinite ease-in-out;
+        }
+
+        @keyframes indeterminateSlide {
+            0%   { left: -40%; }
+            100% { left: 100%; }
+        }
+
         /* Bottom-Left Controls Stack */
         #bottom-left-controls {
             position: fixed;
@@ -157,6 +227,19 @@
     <script src="https://cdn.babylonjs.com/loaders/babylonjs.loaders.min.js"></script>
 </head>
 <body>
+    <!-- Loading Bar Overlay -->
+    <div id="loading-overlay">
+        <div id="loading-box">
+            <div id="loading-header">
+                <span id="loading-label">Loading model</span>
+                <span id="loading-percent">0%</span>
+            </div>
+            <div id="loading-track">
+                <div id="loading-bar-fill"></div>
+            </div>
+        </div>
+    </div>
+
     <canvas id="renderCanvas"></canvas>
 
     <!-- Bottom-Left UI: Hint + Camera Buttons + Site Slider -->
@@ -184,6 +267,14 @@
         // 4th arg (true) enables HiDPI / Retina resolution (adaptToDeviceRatio)
         const engine = new BABYLON.Engine(canvas, true, undefined, true);
 
+        // Disable Babylon's default full-screen loading spinner
+        BABYLON.SceneLoader.ShowLoadingScreen = false;
+
+        const loadingOverlay = document.getElementById("loading-overlay");
+        const loadingLabel = document.getElementById("loading-label");
+        const loadingPercent = document.getElementById("loading-percent");
+        const loadingBarFill = document.getElementById("loading-bar-fill");
+
         // Fixed Camera Target
         const defaultCameraTarget = new BABYLON.Vector3(-1.71, 4.6, -4.75);
 
@@ -193,7 +284,7 @@
             { alpha: 1.3,         beta: 0.7,         radius: 11,   ortho: false }, // cam 2
             { alpha: 0,           beta: 0.5,         radius: 10,   ortho: false }, // cam 3
             { alpha: 3.3,         beta: 1.7,         radius: 12.9, ortho: false }, // cam 4
-            { alpha: Math.PI / 2, beta: 0.00,        radius: 16,   ortho: true  }, // top (orthographic)
+            { alpha: 1.30,        beta: 0.01,        radius: 16,   ortho: true  }, // top (orthographic)
             { alpha: Math.PI / 2, beta: Math.PI / 2, radius: 16,   ortho: true  }, // front (orthographic)
             { alpha: 0,           beta: Math.PI / 2, radius: 16,   ortho: true  }  // side (orthographic)
         ];
@@ -348,13 +439,29 @@
           ground.receiveShadows = true;
           ground.isPickable = false;
 
-          // 4. Load Model
+          // 4. Load Model with Progress Tracking
+          let maxPercent = 0;
+
           const loadModel = async (url, zPos) => {
             const result = await BABYLON.SceneLoader.ImportMeshAsync(
               "",
               url,
               "",
-              scene
+              scene,
+              (evt) => {
+                if (evt.lengthComputable && evt.total > 0) {
+                  const percent = Math.min(100, Math.round((evt.loaded / evt.total) * 100));
+                  maxPercent = Math.max(maxPercent, percent);
+                  loadingBarFill.classList.remove("indeterminate");
+                  loadingBarFill.style.width = `${maxPercent}%`;
+                  loadingPercent.textContent = `${maxPercent}%`;
+                } else {
+                  loadingBarFill.classList.add("indeterminate");
+                  const mb = (evt.loaded / (1024 * 1024)).toFixed(1);
+                  loadingPercent.textContent = `${mb} MB`;
+                }
+              },
+              ".glb"
             );
             const root = result.meshes[0];
 
@@ -376,8 +483,8 @@
           const gizmoManager = new BABYLON.GizmoManager(scene);
           gizmoManager.positionGizmoEnabled = true;
           gizmoManager.rotationGizmoEnabled = true;
-          gizmoManager.gizmos.positionGizmo.scaleRatio = 0.65; // Slightly bigger move arrows
-          gizmoManager.gizmos.rotationGizmo.scaleRatio = 0.35; // Slightly smaller rotation rings
+          gizmoManager.gizmos.positionGizmo.scaleRatio = 0.65;
+          gizmoManager.gizmos.rotationGizmo.scaleRatio = 0.45;
           gizmoManager.usePointerToAttachGizmos = false;
           gizmoManager.gizmos.positionGizmo.updateGizmoRotationToMatchAttachedMesh = false;
           gizmoManager.gizmos.rotationGizmo.updateGizmoRotationToMatchAttachedMesh = false;
@@ -484,9 +591,25 @@
           return scene;
         };
 
-        createScene().then((scene) => {
-          engine.runRenderLoop(() => scene.render());
-        });
+        createScene()
+          .then((scene) => {
+            engine.runRenderLoop(() => scene.render());
+
+            scene.executeWhenReady(() => {
+              loadingBarFill.classList.remove("indeterminate");
+              loadingBarFill.style.width = "100%";
+              loadingPercent.textContent = "100%";
+              loadingOverlay.classList.add("hidden");
+              setTimeout(() => {
+                loadingOverlay.style.display = "none";
+              }, 400);
+            });
+          })
+          .catch((err) => {
+            console.error("Failed to load scene:", err);
+            loadingBarFill.classList.remove("indeterminate");
+            loadingLabel.textContent = "Failed to load model";
+          });
 
         window.addEventListener("resize", () => engine.resize());
     </script>
